@@ -89,3 +89,14 @@ module DisposableOp =
     /// Combines the two given <see cref="IDisposable"/> instances into a single instance that disposes both when disposed.
     /// </summary>
     let inline (<+>) d1 d2 = Disposable.compose2 d1 d2
+
+[<Extension>]
+type DisposableExtensions =
+    /// <summary>
+    /// Combines the two given <see cref="IDisposable"/> instances into a single instance that disposes both when disposed.
+    /// </summary>
+    [<Extension>]
+    static member And (d1, d2) = 
+        if d1 = null then nullArg "d1"
+        if d2 = null then nullArg "d2"
+        Disposable.compose2 d1 d2
