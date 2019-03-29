@@ -2,6 +2,7 @@
 
 open System
 open System.Collections.Generic
+open System.Runtime.CompilerServices
 
 /// <summary>
 /// Representation of a composite of <see cref="IDisposable" /> implementations that disposes all in the composite when disposed.
