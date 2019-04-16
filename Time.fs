@@ -1,5 +1,14 @@
 namespace System
 
+type TimeMetric = Milli | Sec | Min | Hour | Day with 
+    static member From (metric, value) =
+        match metric with
+        | Milli -> TimeSpan.FromMilliseconds value
+        | Sec -> TimeSpan.FromSeconds value
+        | Min -> TimeSpan.FromMinutes value
+        | Hour -> TimeSpan.FromHours value
+        | Day -> TimeSpan.FromDays value
+
 module TimeInt =
     let _100ms = 100
     let _500ms = 500
