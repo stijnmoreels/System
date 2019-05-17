@@ -74,7 +74,9 @@ module Disposable =
     /// Creates a representation of a composite of <see cref="IDisposable" /> implementations that disposes all in the composite when disposed.
     /// </summary>
     [<CompilerMessage(message = "Not desinged for F#", messageNumber = 9001, IsHidden = true)>]
-    let Compose ([<ParamArray>] ds) = CompositeDisposable.Create (Seq.ofArray ds)
+    let Compose ([<ParamArray>] ds) = 
+        if ds = null then nullArg "ds"
+        CompositeDisposable.Create (Seq.ofArray ds)
 
     /// <summary>
     /// Creates a undoable operation by first running the specified <paramref cref="doFunc"/> 
@@ -90,6 +92,8 @@ module Disposable =
     /// </summary>
     [<CompilerMessage(message = "Not desinged for F#", messageNumber = 9001, IsHidden = true)>]
     let Undoable (doFunc : Action) (undoFunc : Action) =
+        if doFunc = null then nullArg "doFunc"
+        if undoFunc = null then nullArg "undoFunc"
         doFunc.Invoke ()
         create undoFunc.Invoke
 
@@ -111,7 +115,6 @@ module Disposable =
     let tearDown f state =
         add (create f) state
 
-/// Builder to create composite disposables with ease.
 type DisposableBuilder () =
     /// Adds a setup function to the composite disposable.
     [<CustomOperation("setup")>]
