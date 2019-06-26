@@ -164,18 +164,18 @@ module Result =
   /// Gets the `x` in the `Ok x` value, but use the given `ifError` function otherwise.
   let getOrElse ifError = function
     | Ok x -> x
-    | _ -> ifError ()
+    | Error err -> ifError err
 
   /// Gets the `x` in the `Ok x` value, but use the given `ifError` value otherwise.
-  let getOrValue ifError result = getOrElse (fun () -> ifError) result
+  let getOrValue ifError result = getOrElse (fun _ -> ifError) result
 
   /// Gets the `Ok x` branch or evaluate the `ifError` to create a new result.
   let orElse ifError = function
     | Ok x -> Ok x
-    | _ -> ifError ()
+    | Error err -> ifError err
 
   /// Gets the `Ok x` branch or use the `ifError` result value.
-  let orElseValue ifError result = orElse (fun () -> ifError) result
+  let orElseValue ifError result = orElse (fun _ -> ifError) result
 
   /// Transforms an `option` to a result, using the given `ifNone` function when the option is `None`.
   let ofOptionWith ifNone = function
@@ -231,7 +231,7 @@ module Result =
   let mapBoth ifOk ifError result =
     either (ifOk >> Ok) (ifError >> Error) result
 
-/// Result computation expression
+/// Result computation expression.
 type ResultBuilder () =
     member __.Bind (result, binder) = Result.bind binder result
     member __.Return (value) = Ok value
