@@ -231,10 +231,12 @@ module Result =
   let mapBoth ifOk ifError result =
     either (ifOk >> Ok) (ifError >> Error) result
 
+/// Result computation expression
 type ResultBuilder () =
     member __.Bind (result, binder) = Result.bind binder result
     member __.Return (value) = Ok value
 
+/// Result auto exposed values.
 [<AutoOpen>]
 module ResultExposure =
 
