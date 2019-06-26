@@ -164,10 +164,10 @@ module Result =
   /// Gets the `x` in the `Ok x` value, but use the given `ifError` function otherwise.
   let defaultWith ifError = function
     | Ok x -> x
-    | _ -> ifError ()
+    | Error err -> ifError err
 
   /// Gets the `x` in the `Ok x` value, but use the given `ifError` value otherwise.
-  let defaultValue ifError = defaultWith (fun () -> ifError)
+  let defaultValue ifError = defaultWith (fun _ -> ifError)
 
   /// Transforms an `option` to a result, using the given `ifNone` function when the option is `None`.
   let ofOptionWith ifNone = function
