@@ -162,12 +162,20 @@ module Result =
   let multipleErrors result = Result.mapError (fun x -> [x]) result
 
   /// Gets the `x` in the `Ok x` value, but use the given `ifError` function otherwise.
-  let defaultWith ifError = function
+  let getOrElse ifError = function
     | Ok x -> x
-    | Error err -> ifError err
+    | _ -> ifError ()
 
   /// Gets the `x` in the `Ok x` value, but use the given `ifError` value otherwise.
-  let defaultValue ifError = defaultWith (fun _ -> ifError)
+  let getOrValue ifError result = getOrElse (fun () -> ifError) result
+
+  /// Gets the `Ok x` branch or evaluate the `ifError` to create a new result.
+  let orElse ifError = function
+    | Ok x -> Ok x
+    | _ -> ifError ()
+
+  /// Gets the `Ok x` branch or use the `ifError` result value.
+  let orElseValue ifError result = orElse (fun () -> ifError) result
 
   /// Transforms an `option` to a result, using the given `ifNone` function when the option is `None`.
   let ofOptionWith ifNone = function
