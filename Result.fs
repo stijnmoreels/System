@@ -233,8 +233,29 @@ module Result =
 
 /// Result computation expression.
 type ResultBuilder () =
-    member __.Bind (result, binder) = Result.bind binder result
     member __.Return (value) = Ok value
+    member __.ReturnFrom (result : Result<'TOk, 'TError>) = result
+    member __.Bind (result, binder) = Result.bind binder result
+    member __.Zero () = Ok ()
+    member __.Combine (result, binder) = Result.bind binder result
+    member __.Delay (f : unit -> _) = f
+    member __.Run (f) = f ()
+    member this.TryWith (result, handler) =
+      try this.ReturnFrom (result)
+      with ex -> handler ex
+    member this.TryFinally (result, compensation) =
+      try this.ReturnFrom (result)
+      finally compensation ()
+    member this.Using (res : #IDisposable, body) =
+      this.TryFinally (body res, fun () -> match res with null -> () | disp -> disp.Dispose ())
+    member this.While (guard, f) =
+      if not (guard ()) then Ok () else
+      do f () |> ignore
+      this.While (guard, f)
+    member this.For (sequence : #seq<_>, body) =
+      this.Using (
+        sequence.GetEnumerator (),
+        fun enum -> this.While(enum.MoveNext, this.Delay (fun () -> body enum.Current)))
 
 /// Result auto exposed values.
 [<AutoOpen>]
