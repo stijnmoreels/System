@@ -1,4 +1,5 @@
 namespace Microsoft.FSharp.Core
+
 open System
 
 /// Additional operations on the `Result<_, _>` type.
