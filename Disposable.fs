@@ -3,35 +3,143 @@ namespace System
 open System
 open System.Collections.Generic
 open System.Runtime.CompilerServices
+open System.Threading.Tasks
+
+#nowarn "9001"
+
+type IAsyncDisposable =
+    inherit IDisposable
+    /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+    abstract member DisposeAsync : unit -> Task
+
+type ILifetimeDisposable =
+    inherit IDisposable
+    /// Setup any application defined tasks.
+    abstract member Setup : unit -> unit
+
+type ILifetimeAsyncDisposable =
+    inherit IAsyncDisposable
+    inherit ILifetimeDisposable
+    /// Setup any application defined tasks.
+    abstract member SetupAsync : unit -> Task
+
+type IAsyncDisposableFSharp =
+    inherit IDisposable
+    /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+    abstract member DisposeAsync : unit -> Async<unit>
+
+type ILifetimeAsyncDisposableFSharp =
+    inherit IAsyncDisposableFSharp
+    inherit ILifetimeDisposable
+    /// Setup any application defined tasks.
+    abstract member SetupAsync : unit -> Async<unit>
 
 /// <summary>
 /// Representation of a composite of <see cref="IDisposable" /> implementations that disposes all in the composite when disposed.
 /// </summary>
-type CompositeDisposable (?disposables : IDisposable seq) =
-    let xs = 
-        disposables
-        |> Option.map (fun x -> List<IDisposable> (x)) 
-        |> Option.defaultValue (List<IDisposable> ())
+type CompositeDisposable ([<ParamArray>] disposables : IDisposable array) =
     /// <summary>
     /// Adds a <see cref="IDisposable" /> implementation to the composite that gets disposed when this instance gets disposed.
     /// </summary>
-    member this.Add (x : IDisposable) = xs.Add x; this
+    member __.Add (x : IDisposable) = new CompositeDisposable (Array.append [|x|] disposables)
+    
+    interface ILifetimeDisposable with
+        /// Setup any application defined tasks.
+        member __.Setup () =
+            disposables
+            |> Seq.iter (function
+              | :? ILifetimeAsyncDisposable as x -> x.SetupAsync().GetAwaiter().GetResult()
+              | :? ILifetimeAsyncDisposableFSharp as x -> x.SetupAsync () |> Async.RunSynchronously
+              | :? ILifetimeDisposable as x -> x.Setup ()
+              | _ -> ())
+
+    interface ILifetimeAsyncDisposable with
+        /// Setup any application defined tasks.
+        member __.SetupAsync () = async { 
+            let! results =
+                disposables 
+                |> Seq.map (function
+                  | :? ILifetimeAsyncDisposable as x -> async { do! x.SetupAsync () |> Async.AwaitTask }
+                  | :? ILifetimeAsyncDisposableFSharp as x -> x.SetupAsync ()
+                  | :? ILifetimeDisposable as x -> x.Setup (); async.Return ()
+                  | _ -> async.Return ())
+                |>Seq.map Async.Catch 
+                |> Async.Parallel
+            let exns =
+                results
+                |> Seq.choose (function | Choice2Of2 ex -> Some ex | _ -> None)
+            if not (Seq.isEmpty exns)
+            then raise (AggregateException (Array.ofSeq exns)) } |> Async.StartAsTask :> Task
+
+    interface ILifetimeAsyncDisposableFSharp with
+        /// Setup any application defined tasks.
+        member __.SetupAsync () = async { 
+            let! results =
+                disposables 
+                |> Seq.map (function
+                  | :? ILifetimeAsyncDisposable as x -> async { do! x.SetupAsync () |> Async.AwaitTask }
+                  | :? ILifetimeAsyncDisposableFSharp as x -> x.SetupAsync ()
+                  | :? ILifetimeDisposable as x -> x.Setup (); async.Return ()
+                  | _ -> async.Return ())
+                |>Seq.map Async.Catch 
+                |> Async.Parallel
+            let exns =
+                results
+                |> Seq.choose (function | Choice2Of2 ex -> Some ex | _ -> None)
+            if not (Seq.isEmpty exns)
+            then raise (AggregateException (Array.ofSeq exns)) }
+
+
     interface IDisposable with
+        /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
         member __.Dispose () =
             let exns = List<exn> ()
-            for x in xs do
-                try x.Dispose ()
-                with ex -> exns.Add ex
+            for x in disposables do
+              try x.Dispose ()
+              with ex -> exns.Add ex
             if exns.Count <> 0 
             then raise (AggregateException (exns.ToArray ()))
+    
+    interface IAsyncDisposable with
+        /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+        member __.DisposeAsync () = async { 
+          let! results =
+            disposables 
+            |> Seq.map (function
+              | :? IAsyncDisposable as x -> async { do! x.DisposeAsync () |> Async.AwaitTask }
+              | :? IAsyncDisposableFSharp as x -> x.DisposeAsync ()
+              | x -> x.Dispose (); async.Return ())
+            |> Seq.map Async.Catch
+            |> Async.Parallel
+          let exns =
+              results |> Seq.choose (function | Choice2Of2 ex -> Some ex | _ -> None)
+          if not (Seq.isEmpty exns)
+          then raise (AggregateException (Array.ofSeq exns)) } |> Async.StartAsTask :> Task
+
+    interface IAsyncDisposableFSharp with
+        /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+        member __.DisposeAsync () = async { 
+          let! results =
+            disposables 
+            |> Seq.map (function
+              | :? IAsyncDisposable as x -> async { do! x.DisposeAsync () |> Async.AwaitTask }
+              | :? IAsyncDisposableFSharp as x -> x.DisposeAsync ()
+              | x -> x.Dispose (); async.Return ())
+            |> Seq.map Async.Catch
+            |> Async.Parallel
+          let exns =
+              results |> Seq.choose (function | Choice2Of2 ex -> Some ex | _ -> None)
+          if not (Seq.isEmpty exns)
+          then raise (AggregateException (Array.ofSeq exns)) }
+               
     /// <summary>
     /// Creates a representation of a composite of <see cref="IDisposable" /> implementations that disposes all in the composite when disposed.
     /// </summary>
-    static member Create () = new CompositeDisposable ()
+    static member Create () = new CompositeDisposable ([||])
     /// <summary>
     /// Creates a representation of a composite of <see cref="IDisposable" /> implementations that disposes all in the composite when disposed.
     /// </summary>
-    static member Create (xs : #seq<_>) = new CompositeDisposable (xs)
+    static member Create (xs : IEnumerable<IDisposable>) = new CompositeDisposable (Array.ofSeq xs)
 
 /// <summary>
 /// Exposed functionality for <see cref="IDisposable"/> implementations.
@@ -40,15 +148,18 @@ module Disposable =
     /// <summary>
     /// Creates a <see cref="IDisposable" /> implementation that runs the specified function when disposed.
     /// </summary>
-    let create f = { new IDisposable with member __.Dispose() = f () }
-    
+    let create f = 
+        { new IAsyncDisposable with 
+            member __.Dispose() = f ()
+            member __.DisposeAsync () = Task.Run(Action f) } :> IDisposable
+
     /// <summary>
     /// Creates a <see cref="IDisposable" /> implementation that runs the specified function when disposed.
     /// </summary>
-    [<CompilerMessage(message = "Not desinged for F#", messageNumber = 9001, IsHidden = true)>]
-    let Create (f : Action<_>) = 
-        if f = null then nullArg "f"
-        create f.Invoke
+    let createAsync f =
+        { new IAsyncDisposableFSharp with
+            member __.Dispose () = f () |> Async.RunSynchronously
+            member __.DisposeAsync () = f () }
 
     /// <summary>
     /// Creates a disposable without any functionality
@@ -68,34 +179,27 @@ module Disposable =
     /// <summary>
     /// Creates a representation of a composite of <see cref="IDisposable" /> implementations that disposes all in the composite when disposed.
     /// </summary>
-    let compose ds = CompositeDisposable.Create ds
-    
-    /// <summary>
-    /// Creates a representation of a composite of <see cref="IDisposable" /> implementations that disposes all in the composite when disposed.
-    /// </summary>
-    [<CompilerMessage(message = "Not desinged for F#", messageNumber = 9001, IsHidden = true)>]
-    let Compose ([<ParamArray>] ds) = 
-        if ds = null then nullArg "ds"
-        CompositeDisposable.Create (Seq.ofArray ds)
+    let compose (ds : seq<IDisposable>) = CompositeDisposable.Create ds
 
     /// <summary>
     /// Creates a undoable operation by first running the specified <paramref cref="doFunc"/> 
     /// and running the other specified <paramref cref="undoFunc"/> when the returned disposable gets disposed.
     /// </summary>
     let undoable doFunc undoFunc =
-        doFunc ()
-        create undoFunc
-
+        { new ILifetimeDisposable with
+            member __.Setup () = doFunc ()
+            member __.Dispose () = undoFunc () }
+        
     /// <summary>
     /// Creates a undoable operation by first running the specified <paramref cref="doFunc"/> 
     /// and running the other specified <paramref cref="undoFunc"/> when the returned disposable gets disposed.
     /// </summary>
-    [<CompilerMessage(message = "Not desinged for F#", messageNumber = 9001, IsHidden = true)>]
-    let Undoable (doFunc : Action) (undoFunc : Action) =
-        if doFunc = null then nullArg "doFunc"
-        if undoFunc = null then nullArg "undoFunc"
-        doFunc.Invoke ()
-        create undoFunc.Invoke
+    let undoableAsync doFunc undoFunc =
+        { new ILifetimeAsyncDisposableFSharp with
+            member __.SetupAsync () = doFunc ()
+            member __.Setup () = doFunc() |> Async.RunSynchronously
+            member __.DisposeAsync () = undoFunc ()
+            member __.Dispose () = undoFunc() |> Async.RunSynchronously }
 
     /// <summary>
     /// Adds a disposable instance to the composite disposable
@@ -110,28 +214,119 @@ module Disposable =
         add (undoable f id) state
 
     /// <summary>
+    /// Adds a setup function to the composite disposable.
+    /// </summary>
+    let setupAsync f state =
+        add (undoableAsync f async.Return) state
+
+    /// <summary>
     /// Adds a function that runs when the `Dispose` is called on the composite disposable.
     /// </summary>
     let tearDown f state =
         add (create f) state
 
-type DisposableBuilder () =
-    /// Adds a setup function to the composite disposable.
-    [<CustomOperation("setup")>]
-    member __.Setup (state, f) = Disposable.setup f state
+    /// <summary>
+    /// Adds a function that runs when the `Dispose` is called on the composite disposable.
+    /// </summary>
+    let tearDownAsync f state =
+        add (createAsync f) state
+
+    /// Runs the `Setup` of the given lifetime disposable.
+    let run (state : ILifetimeDisposable) =
+        state.Setup ()
+    
+    /// Runs the `SetupAsync` of the given lifetime disposable
+    let runAsync (state : ILifetimeAsyncDisposableFSharp) =
+        state.SetupAsync ()
+
+    /// Runs the '`Dispose` of the given disposable.
+    let dispose (d : IDisposable) = 
+        d.Dispose()
+
+    /// Runs the `DisposeAsync` of the given disposable.
+    let disposeAsync (d : IAsyncDisposableFSharp) =
+        d.DisposeAsync ()
+
+    /// <summary>
+    /// Creates a <see cref="IDisposable" /> implementation that runs the specified function when disposed.
+    /// </summary>
+    [<CompilerMessage(message = "Not desinged for F#", messageNumber = 9001, IsHidden = true)>]
+    let Create (f : Action) = 
+        if f = null then nullArg "f"
+        create f.Invoke
+
+    /// <summary>
+    /// Creates a <see cref="IDisposable" /> implementation that runs the specified function when disposed.
+    /// </summary>
+    [<CompilerMessage(message = "Not desinged for F#", messageNumber = 9001, IsHidden = true)>]
+    let CreateAsync (f : Func<Task>) =
+        if f = null then nullArg "f"
+        { new IAsyncDisposable with
+            member __.Dispose () = f.Invoke().GetAwaiter().GetResult() 
+            member __.DisposeAsync () = f.Invoke() }
+
+    /// <summary>
+    /// Creates a representation of a composite of <see cref="IDisposable" /> implementations that disposes all in the composite when disposed.
+    /// </summary>
+    [<CompilerMessage(message = "Not desinged for F#", messageNumber = 9001, IsHidden = true)>]
+    let Compose ([<ParamArray>] ds) = 
+        if ds = null then nullArg "ds"
+        CompositeDisposable.Create (Seq.ofArray ds)
+
     /// <summary>
     /// Creates a undoable operation by first running the specified <paramref cref="doFunc"/> 
     /// and running the other specified <paramref cref="undoFunc"/> when the returned disposable gets disposed.
     /// </summary>
-    [<CustomOperation("undo")>]
+    [<CompilerMessage(message = "Not desinged for F#", messageNumber = 9001, IsHidden = true)>]
+    let Undoable (doFunc : Action) (undoFunc : Action) =
+        if doFunc = null then nullArg "doFunc"
+        if undoFunc = null then nullArg "undoFunc"
+        undoable doFunc.Invoke undoFunc.Invoke
+
+ /// <summary>
+    /// Creates a undoable operation by first running the specified <paramref cref="doFunc"/> 
+    /// and running the other specified <paramref cref="undoFunc"/> when the returned disposable gets disposed.
+    /// </summary>
+    [<CompilerMessage(message = "Not desinged for F#", messageNumber = 9001, IsHidden = true)>]
+    let UndoableAsync (doFunc : Func<Task>) (undoFunc : Func<Task>) =
+        if doFunc = null then nullArg "doFunc"
+        if undoFunc = null then nullArg "undoFunc"
+        { new ILifetimeAsyncDisposable with
+            member __.SetupAsync () = doFunc.Invoke() 
+            member __.Setup () = doFunc.Invoke().GetAwaiter().GetResult()
+            member __.DisposeAsync () = undoFunc.Invoke()
+            member __.Dispose () = undoFunc.Invoke().GetAwaiter().GetResult() }
+
+type DisposableBuilder () =
+    /// Adds a setup function to the composite disposable.
+    [<CustomOperation("setup")>]
+    member __.Setup (state, f) = Disposable.setup f state
+    /// Adds a setup function to the composite disposable.
+    [<CustomOperation("setupAsync")>]
+    member __.SetupAsync (state, f) = Disposable.setupAsync f state
+    /// <summary>
+    /// Creates a undoable operation by first running the specified <paramref cref="doFunc"/> 
+    /// and running the other specified <paramref cref="undoFunc"/> when the returned disposable gets disposed.
+    /// </summary>
+    [<CustomOperation("undoable")>]
     member __.Undo (state, createF, disposeF) =
         Disposable.add (Disposable.undoable createF disposeF) state
+    /// <summary>
+    /// Creates a undoable operation by first running the specified <paramref cref="doFunc"/> 
+    /// and running the other specified <paramref cref="undoFunc"/> when the returned disposable gets disposed.
+    /// </summary>
+    [<CustomOperation("undoableAsync")>]
+    member __.UndoAsync (state, createF, disposeF) =
+        Disposable.add (Disposable.undoableAsync createF disposeF) state
     /// Adds a disposable instance to the composite disposable
     [<CustomOperation("add")>]
     member __.Add (state, disposable) = Disposable.add disposable state
     /// Adds a function that runs when the `Dispose` is called on the composite disposable.
     [<CustomOperation("tearDown")>]
     member __.TearDown (state, f) = Disposable.tearDown f state
+    /// Adds a function that runs when the `Dispose` is called on the composite disposable.
+    [<CustomOperation("tearDownAsync")>]
+    member __.TearDownAsync (state, f) = Disposable.tearDownAsync f state
     member __.Yield (_) =
         Disposable.compose []
 
@@ -157,3 +352,39 @@ type DisposableExtensions =
         if d1 = null then nullArg "d1"
         if d2 = null then nullArg "d2"
         Disposable.compose2 d1 d2
+
+    /// <summary>
+    /// Adds a setup function to the composite disposable.
+    /// </summary>
+    [<Extension>]
+    [<CompilerMessage(message = "Not desinged for F#", messageNumber = 9001, IsHidden = true)>]
+    static member AddSetup (state : CompositeDisposable) f =
+        if f = null then nullArg "f"
+        state.Add (Disposable.Undoable f (Action id))
+
+    /// <summary>
+    /// Adds a setup function to the composite disposable.
+    /// </summary>
+    [<Extension>]
+    [<CompilerMessage(message = "Not desinged for F#", messageNumber = 9001, IsHidden = true)>]
+    static member AddSetupAsync (state : CompositeDisposable) (f : Func<Task>) =
+        if f = null then nullArg "f"
+        state.Add (Disposable.UndoableAsync f (Func<_> (fun () -> Task.CompletedTask)))
+
+    /// <summary>
+    /// Adds a function that runs when the `Dispose` is called on the composite disposable.
+    /// </summary>
+    [<Extension>]
+    [<CompilerMessage(message = "Not desinged for F#", messageNumber = 9001, IsHidden = true)>]
+    static member AddTearDown (state : CompositeDisposable) (f : Action) =
+        if f = null then nullArg "f"
+        state.Add (Disposable.Create f)
+
+    /// <summary>
+    /// Adds a function that runs when the `Dispose` is called on the composite disposable.
+    /// </summary>
+    [<Extension>]
+    [<CompilerMessage(message = "Not desinged for F#", messageNumber = 9001, IsHidden = true)>]
+    static member AddTearDownAsync (state : CompositeDisposable) (f : Func<Task>) =
+        if f = null then nullArg "f"
+        state.Add (Disposable.CreateAsync f)
