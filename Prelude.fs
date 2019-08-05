@@ -8,11 +8,3 @@ module Prelude =
     let inline using f (x : ^a when ^a : (member Dispose : unit -> unit)) =
         try f x
         finally (^a : (member Dispose : unit -> unit) x)
-        
-namespace Microsoft.FSharp.Control
-        
-[<AutoOpen>]
-module AsyncPrelude
-        
-    type AsyncBuilder with
-        member inline __.Using (resource, binder) = using binder resource
