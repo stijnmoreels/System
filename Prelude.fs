@@ -8,3 +8,6 @@ module Prelude =
     let inline using f (x : ^a when ^a : (member Dispose : unit -> unit)) =
         try f x
         finally (^a : (member Dispose : unit -> unit) x)
+        
+    type AsyncBuilder with
+        member inline __.Using (resource, binder) = using binder resource
