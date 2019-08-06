@@ -247,6 +247,16 @@ module Disposable =
     let disposeAsync (d : IAsyncDisposableFSharp) =
         d.DisposeAsync ()
 
+    /// Disposes all the given disposables safely.
+    [<CompiledName("DisposeAll")>]
+    let disposeAll (disposables : IDisposable seq) =
+        let exns = List<exn> ()
+        for x in disposables do
+          try x.Dispose ()
+          with ex -> exns.Add ex
+        if exns.Count <> 0 
+        then raise (AggregateException (exns.ToArray ()))
+
     /// <summary>
     /// Creates a <see cref="IDisposable" /> implementation that runs the specified function when disposed.
     /// </summary>
