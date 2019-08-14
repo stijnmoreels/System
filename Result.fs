@@ -199,6 +199,10 @@ module Result =
   /// Transforms the `Ok x` into an option `Some x`, using `None` when the result is `Error`.
   let toOption result = fold (fun _ x -> Some x) None result
 
+  /// Traverse the list and returns the `x` of the `Ok x` of each element; evaluated with the given function.
+  let choose (f : 'a -> Result<'b, 'c list>) (xs : 'a list) =
+    [ for x in xs do match f x with Ok x -> yield x | _ -> () ]
+
   /// Runs a given function, mapping the outcome to a `Ok` value 
   /// but handling the possible thrown exception with a given `handler` into a `Error` value.
   let catch f handler x =
