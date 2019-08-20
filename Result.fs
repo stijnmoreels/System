@@ -1,6 +1,7 @@
 namespace Microsoft.FSharp.Core
 
 open System
+open System.Runtime.CompilerServices
 
 /// Additional operations on the `Result<_, _>` type.
 module Result =
@@ -278,3 +279,52 @@ module ResultBuilder =
 
   /// Result computation expression
   let result = new ResultBuilder ()
+
+/// Add C# extensions for the result type.
+[<Extension>]
+type ResultExtensions () =
+  /// Transforms the successful value of the result to another type.
+  [<Extension>]
+  static member Select (result : Result<'T, 'TError>, selector : Func<'T, 'TResult>) =
+      if isNull selector then nullArg "selector"
+      Result.map selector.Invoke result
+  /// Transforms the failure value of the result to another type.
+  [<Extension>]
+  static member Select (result : Result<'T, 'TError>, selector : Func<'TError, 'TResult>) =
+      if isNull selector then nullArg "selector"
+      Result.mapError selector.Invoke result
+  /// Transforms the successful value of the result to another result.
+  [<Extension>]
+  static member SelectMany (result : Result<'T, 'TError>, selector : Func<'T, Result<'TResult, 'TError>>) =
+      if isNull selector then nullArg "selector"
+      Result.bind selector.Invoke result
+  /// Filter the result for a given predicate, and create a failure result for a given value if the predicate doesn't hold.
+  [<Extension>]
+  static member Where (result : Result<'T, 'TError>, predicate : Func<'T, bool>, createError : Func<'TError>) =
+      if isNull predicate then nullArg "predicate"
+      Result.filterWith predicate.Invoke createError.Invoke result
+  /// Filter the result for a given predicate, and create a failure result for a given value if the predicate doesn't hold.
+  [<Extension>]
+  static member Where (result : Result<'T, 'TError>, predicate : Func<'T, bool>, error : 'TError) =
+      if isNull predicate then nullArg "predicate"
+      Result.filter predicate.Invoke error result
+  /// Aggregates the successful result value into another value.
+  [<Extension>]
+  static member Aggregate (result : Result<'T, 'TError>, seed : 'TAccumulate, aggregator : Func<'TAccumulate, 'T, 'TAccumulate>) =
+      if isNull aggregator then nullArg "aggregator"
+      Result.fold (fun acc x -> aggregator.Invoke (acc, x)) seed result
+  /// Tries to get the successful value out of the result.
+  [<Extension>]
+  static member TryGetValue (result : Result<'T, 'TError>, value : outref<_>) =
+      match result with
+      | Ok x -> value <- x; true
+      | _ -> value <- Unchecked.defaultof<_>; false
+  /// Tries to get the successful value out of the result, or a given alternative.
+  [<Extension>]
+  static member GetOrElse (result : Result<'T, 'TError>, otherwise : Func<'TError, 'T>) =
+      if isNull otherwise then nullArg "otherwise"
+      Result.getOrElse otherwise.Invoke result
+  /// Tries to get the successful value out of the result, or a given alternative.
+  [<Extension>]
+  static member GetOrElse (result : Result<'T, 'TError>, otherwise) =
+      Result.getOrValue otherwise result
