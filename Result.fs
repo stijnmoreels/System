@@ -237,6 +237,15 @@ module Result =
   let mapBoth ifOk ifError result =
     either (ifOk >> Ok) (ifError >> Error) result
 
+  /// Result operators on the result type.
+  module Operators =
+
+      let (>>=) m f = Result.bind f m
+      let (>=>) f g = f >> Result.bind g
+      let (<!>) m f = Result.map f m
+      let (<*>) = apply
+
+
 /// Result computation expression.
 type ResultBuilder () =
     member __.Return (value) = Ok value
@@ -265,12 +274,7 @@ type ResultBuilder () =
 
 /// Result auto exposed values.
 [<AutoOpen>]
-module ResultExposure =
-
-  let (>>=) m f = Result.bind f m
-  let (>=>) f g = f >> Result.bind g
-  let (<!>) m f = Result.map f m
-  let (<*>) = Result.apply
+module ResultBuilder =
 
   /// Result computation expression
   let result = new ResultBuilder ()
