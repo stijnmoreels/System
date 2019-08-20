@@ -85,6 +85,13 @@ module Option =
     | Some x -> Ok x
     | None -> Error (ifNone ())
 
+  /// Option operators on the option type.
+  module Operators =
+    let (>>=) m f = Option.bind f m
+    let (>=>) f g = f >> Option.bind g
+    let (<!>) m f = Option.map f m
+    let (<*>) = apply
+
 /// Computation expression for the `Option<_>` type.
 type OptionBuilder internal () =
     member __.Return (x) = Some x
@@ -113,11 +120,7 @@ type OptionBuilder internal () =
  
 /// Automatic exposed values for the `Option<_>` type.
 [<AutoOpen>]
-module OptionExposure =
-  let (>>=) m f = Option.bind f m
-  let (>=>) f g = f >> Option.bind g
-  let (<!>) m f = Option.map f m
-  let (<*>) = Option.apply
+module OptionBuilder =
 
   /// Gets the computation expression.
   let option = OptionBuilder ()
