@@ -1,6 +1,7 @@
 namespace Microsoft.FSharp.Core
 
 open System
+open System.Runtime.CompilerServices
 
 /// Additional operations on the `Option<_>` type.
 module Option =
@@ -124,3 +125,47 @@ module OptionBuilder =
 
   /// Gets the computation expression.
   let option = OptionBuilder ()
+
+/// Add C# extensions for the option type.
+[<Extension>]
+type OptionExtensions () =
+  /// Transforms the optional value to antother type.
+  [<Extension>]
+  static member Select (option : Option<'T>, selector : Func<'T, 'TResult>) =
+    if isNull selector then nullArg "selector"
+    Option.map selector.Invoke option
+  /// Transforms the optional value to another optional value.
+  [<Extension>]
+  static member SelectMany (option : Option<'T>, selector : Func<'T, Option<'TResult>>) =
+    if isNull selector then nullArg "selector"
+    Option.bind selector.Invoke option
+  /// Filters the optional value for a give predicate, and return the `None` value if the predicate doesn't hold.
+  [<Extension>]
+  static member Where (option : Option<'T>, predicate : Func<'T, bool>) =
+    if isNull predicate then nullArg "predicate"
+    Option.filter predicate.Invoke option
+  /// Aggregates the optional value to another value.
+  [<Extension>]
+  static member Aggregate (option : Option<'T>, seed : 'TAccumulate, aggregator : Func<'TAccumulate, 'T, 'TAccumulate>) =
+    if isNull aggregator then nullArg "aggregator"
+    Option.fold (fun acc x -> aggregator.Invoke (acc, x)) seed option
+  /// Runs a dead-end function on the optional value. Useful for logging for example.
+  [<Extension>]
+  static member Do (option : Option<'T>, action : Action<'T>) =
+    if isNull action then nullArg "action"
+    Option.iter action.Invoke option
+  /// Gets the value from the optional value or evaluate one from the given creator function.
+  [<Extension>]
+  static member GetOrElse (option : Option<'T>, creator : Func<'T>) =
+    if isNull creator then nullArg "creator"
+    Option.defaultWith creator.Invoke option
+  /// Gets the value from the optional value or use a given default value instead.
+  [<Extension>]
+  static member GetOrElse (option : Option<'T>, defaultValue : 'T) =
+    Option.defaultValue defaultValue option
+  /// Tries to get the value from the optional value.
+  [<Extension>]
+  static member TryGetValue (option : Option<'T>, result : outref<'T>) =
+    match option with
+    | Some x -> result <- x; true
+    | _ -> result <- Unchecked.defaultof<'T>; false
