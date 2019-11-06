@@ -1,4 +1,4 @@
-namespace FPrimitive
+namespace System
 
 open System.Runtime.CompilerServices
 open System
