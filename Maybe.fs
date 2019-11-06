@@ -12,7 +12,9 @@ exception ValueNotPresentException of string
 /// Represents a optional model that can either contain a value or not.
 [<Struct>]
 type Maybe<'T> private (value : 'T, isPresent : bool) =
-  new (value : 'T) = new Maybe<'T> (value, isPresent=true)
+  new (value : 'T) =
+    if obj.ReferenceEquals(value, null) then nullArg "value"
+    new Maybe<'T> (value, isPresent=true)
   /// Gets the value indicating whether this optional instance represents a value or the absence of a value.
   member __.IsPresent = isPresent
   /// Gets the value of this optional instance, but throws a `ValueNotPresentException` when there is not value.
@@ -41,7 +43,7 @@ type Maybe private () =
   /// Creates an optional instance representing the absence of a value.
   static member Nothing<'T> () = Maybe<'T>.Nothing
   /// Creates an optional instance representing a value when the given value is not null.
-  static member JustOrNothing value = if isNull value then Maybe<'T>.Nothing else Maybe<'T> value
+  static member JustOrNothing value = if obj.ReferenceEquals(value, null) then Maybe<'T>.Nothing else Maybe<'T> value
   /// Transforms a F# option to an optional `Maybe<>` instance.
   static member OfOption<'T> (option : Option<'T>) = Maybe<'T>.op_Implicit option
   /// Transforms a optional `Maybe<>` instance to a F# option.
