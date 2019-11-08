@@ -27,6 +27,7 @@ type Maybe<'T> private (value : 'T, isPresent : bool) =
 
   static member op_Implicit (this : Maybe<'T>) = if this.IsPresent then Some this.Value else None
   static member op_Implicit (this : Option<'T>) = if this.IsSome then Maybe<'T> this.Value else Maybe<'T>.Nothing
+  static member op_Implicit (this : 'T) = Maybe<'T> this
 
   interface IEnumerable<'T> with
     member this.GetEnumerator () = 
