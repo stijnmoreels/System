@@ -42,7 +42,13 @@ type CompositeDisposable ([<ParamArray>] disposables : IDisposable array) =
     /// Adds a <see cref="IDisposable" /> implementation to the composite that gets disposed when this instance gets disposed.
     /// </summary>
     member __.Add (x : IDisposable) = new CompositeDisposable (Array.append [|x|] disposables)
-    
+    /// Gets the disposables from the composite type.
+    member __.ToArray () = disposables
+    static member op_Implicit (composite : CompositeDisposable) = composite.ToArray ()
+
+    interface System.Collections.IEnumerable with
+        member __.GetEnumerator () = disposables.GetEnumerator ()
+
     interface ILifetimeDisposable with
         /// Setup any application defined tasks.
         member __.Setup () =
@@ -108,7 +114,7 @@ type CompositeDisposable ([<ParamArray>] disposables : IDisposable array) =
             |> Seq.map (function
               | :? IAsyncDisposable as x -> async { do! x.DisposeAsync () |> Async.AwaitTask }
               | :? IAsyncDisposableFSharp as x -> x.DisposeAsync ()
-              | x -> x.Dispose (); async.Return ())
+              | x -> async { x.Dispose (); return () })
             |> Seq.map Async.Catch
             |> Async.Parallel
           let exns =
@@ -124,7 +130,7 @@ type CompositeDisposable ([<ParamArray>] disposables : IDisposable array) =
             |> Seq.map (function
               | :? IAsyncDisposable as x -> async { do! x.DisposeAsync () |> Async.AwaitTask }
               | :? IAsyncDisposableFSharp as x -> x.DisposeAsync ()
-              | x -> x.Dispose (); async.Return ())
+              | x -> async { x.Dispose (); return () })
             |> Seq.map Async.Catch
             |> Async.Parallel
           let exns =
@@ -164,11 +170,13 @@ module Disposable =
     /// <summary>
     /// Creates a disposable without any functionality
     /// </summary>
+    [<CompiledName("Empty")>]
     let empty = create id
 
     /// <summary>
     /// Combines the two given <see cref="IDisposable"/> instances into a single instance that disposes both when disposed.
     /// </summary>
+    [<CompiledName("Combine")>]
     let compose2 (d1 : IDisposable) (d2 : IDisposable) =
         match d1, d2 with
         | :? CompositeDisposable as d, x -> d.Add x
@@ -204,6 +212,7 @@ module Disposable =
     /// <summary>
     /// Adds a disposable instance to the composite disposable
     /// </summary>
+    [<CompiledName("Add")>]
     let add d (state : CompositeDisposable) =
         state.Add d
     
@@ -240,6 +249,7 @@ module Disposable =
         state.SetupAsync ()
 
     /// Runs the '`Dispose` of the given disposable.
+    [<CompiledName("Dispose")>]
     let dispose (d : IDisposable) = 
         d.Dispose()
 
