@@ -11,7 +11,7 @@ module Result =
 
   /// Creates a failure result.
   let error = Error
-  
+
   /// Creates a failures results.
   let errors x = Error [x]
 
@@ -203,6 +203,15 @@ module Result =
   /// Transforms the `Ok x` into an option `Some x`, using `None` when the result is `Error`.
   let toOption result = fold (fun _ x -> Some x) None result
 
+  /// Transforms an object from to a `Ok x` result when the object is not `null`; otherwise `Error error` with the specified error.
+  let ofObj error = function
+    | null -> Error error
+    | x -> Ok x
+
+  /// Transforms a result to an object using the `Ok x` value; otherwise use the default value of the `Ok x` type.
+  let toObj (result : Result<'T, 'TError>) = 
+    getOrValue Unchecked.defaultof<'T> result
+
   /// Traverse the list and returns the `x` of the `Ok x` of each element; evaluated with the given function.
   let choose (f : 'a -> Result<'b, 'c list>) (xs : 'a list) =
     [ for x in xs do match f x with Ok x -> yield x | _ -> () ]
@@ -248,7 +257,6 @@ module Result =
       let (>=>) f g = f >> Result.bind g
       let (<!>) m f = Result.map f m
       let (<*>) = apply
-
 
 /// Result computation expression.
 type ResultBuilder () =
