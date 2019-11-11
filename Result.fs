@@ -11,6 +11,9 @@ module Result =
 
   /// Creates a failure result.
   let error = Error
+  
+  /// Creates a failures results.
+  let errors x = Error [x]
 
   /// Determines whether the result is successful.
   let isOk = function Ok _ -> true | _ -> false
