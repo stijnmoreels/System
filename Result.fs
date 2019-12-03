@@ -21,6 +21,11 @@ module Result =
   /// Determines whether the result is faulted.
   let isError = function Error _ -> false | _ -> true
 
+  /// Maps to a fixed `Ok` value `x` when the result is `Ok x`.
+  let mapTo value = function
+    | Ok _ -> Ok value
+    | x -> x
+
   /// Aggregates the `x` in `Ok x` with a provided seed.
   let fold accummulator seed r =
     match r with
