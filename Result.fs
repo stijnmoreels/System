@@ -24,7 +24,7 @@ module Result =
   /// Maps to a fixed `Ok` value `x` when the result is `Ok x`.
   let mapTo value = function
     | Ok _ -> Ok value
-    | x -> x
+    | Error x -> Error x
 
   /// Aggregates the `x` in `Ok x` with a provided seed.
   let fold accummulator seed r =
