@@ -6,6 +6,11 @@ open System.Runtime.CompilerServices
 /// Additional operations on the `Option<_>` type.
 module Option =
 
+  /// Maps to a fixed `Some` value `x` when the option is `Some x`.
+  let mapTo value = function
+    | Some _ -> Some value
+    | None -> None
+
   /// Lifts a two argument function to work with option types.
   let lift2 f xOption yOption =
     match xOption, yOption with
