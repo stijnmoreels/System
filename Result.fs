@@ -56,28 +56,55 @@ module Result =
     | x -> x
 
   /// Lifts a two argument function to work with result types.
-  let lift2 f xResult yResult =
+  let lift2With fError f xResult yResult =
     match xResult, yResult with
     | Ok x, Ok y -> Ok (f x y)
-    | Error err1, Error err2 -> Error (err1 @ err2)
+    | Error err1, Error err2 -> Error (fError err1 err2)
     | Error err, _ | _, Error err -> Error err
+
+  /// Lifts a two argument function to work with result types.
+  let lift2 f xResult yResult =
+    lift2With List.append f xResult yResult
+
+  /// Lifts a three argument function to work with result types.
+  let lift3With fError f xResult yResult zResult =
+    match xResult, yResult, zResult with
+    | Ok x, Ok y, Ok z -> Ok (f x y z)
+    | Error e1, Error e2, Error e3 -> Error (fError (fError e1 e2) e3)
+    | Error err, Ok _, Ok _ | Ok _, Error err, Ok _ | Ok _, Ok _, Error err -> Error err
+    | Error e1, Error e2, Ok _ | Ok _, Error e1, Error e2 | Error e1, Ok _, Error e2 -> Error (fError e1 e2)
 
   /// Lifts a three argument function to work with result types.
   let lift3 f xResult yResult zResult =
-    match xResult, yResult, zResult with
-    | Ok x, Ok y, Ok z -> Ok (f x y z)
-    | Error e1, Error e2, Error e3 -> Error ((e1 @ e2) @ e3)
-    | Error err, _, _ | _, Error err, _ | _, _, Error err -> Error err
+    lift3With (@) f xResult yResult zResult
+
+  /// Lifts a four argument function to work with result types.
+  let lift4With fError f xResult yResult zResult aResult =
+    match xResult, yResult, zResult, aResult with
+    | Ok x, Ok y, Ok z, Ok a -> Ok (f x y z a)
+    | Error e1, Error e2, Error e3, Error e4 -> Error (fError (fError (fError e1 e2) e3) e4)
+    | Error err, Ok _, Ok _, Ok _ 
+    | Ok _, Error err, Ok _, Ok _ 
+    | Ok _, Ok _, Error err, Ok _ 
+    | Ok _, Ok _, Ok _, Error err -> Error err
+    | Error e1, Error e2, Ok _, Ok _
+    | Ok _, Error e1, Error e2, Ok _
+    | Ok _, Ok _, Error e1, Error e2
+    | Error e1, Ok _, Ok _, Error e2 
+    | Ok _, Error e1, Ok _, Error e2 
+    | Error e1, Ok _, Error e2, Ok _ -> Error (fError e1 e2)
+    | Error e1, Error e2, Error e3, Ok _
+    | Ok _, Error e1, Error e2, Error e3
+    | Error e1, Ok _, Error e2, Error e3
+    | Error e1, Error e2, Ok _, Error e3 -> Error (fError (fError e1 e2) e3)
 
   /// Lifts a four argument function to work with result types.
   let lift4 f xResult yResult zResult aResult =
-    match xResult, yResult, zResult, aResult with
-    | Ok x, Ok y, Ok z, Ok a -> Ok (f x y z a)
-    | Error e1, Error e2, Error e3, Error e4 -> Error (List.append e1 e2 |> List.append e3 |> List.append e4)
-    | Error err, _, _, _ 
-    | _, Error err, _, _ 
-    | _, _, Error err, _ 
-    | _, _, _, Error err -> Error err
+    lift4With (@) f xResult yResult zResult aResult
+
+  /// Applies a function `f` in `Ok f` to a `x` in `Ok x` when both are `Ok` values.
+  let applyWith fError fResult xResult =
+    lift2With fError (fun f x -> f x) fResult xResult
 
   /// Applies a function `f` in `Ok f` to a `x` in `Ok x` when both are `Ok` values.
   let apply fResult xResult =
@@ -134,24 +161,34 @@ module Result =
 
   /// Traverse over a sequence running a given mapping function over the elements, 
   /// collecting the outcomes into a result.
-  let traverseSeq f xs =
+  let traverseSeqWith fError f xs =
     let consR = Ok (fun h t -> seq { yield h; yield! t })
     Seq.foldBack
-      (fun x acc -> apply (apply consR (f x)) acc)
+      (fun x acc -> applyWith fError (applyWith fError consR (f x)) acc)
       xs
       (Ok Seq.empty)
+
+  /// Traverse over a sequence running a given mapping function over the elements, 
+  /// collecting the outcomes into a result.
+  let traverseSeq f xs =
+    traverseSeqWith List.append f xs
     
-  /// Transorms a sequence of results into a result of a sequence.
+  /// Transforms a sequence of results into a result of a sequence.
   let sequenceSeq xs = traverseSeq id xs
 
   /// Traverse over a list running a given mapping function over the elements, 
   /// collecting the outcomes into a result.
-  let traverse f xs =
+  let traverseWith fError f xs =
     let consR = Ok (fun h t -> h :: t)
     List.foldBack
-      (fun x acc -> apply (apply consR (f x)) acc)
+      (fun x acc -> applyWith fError (applyWith fError consR (f x)) acc)
       xs
       (Ok [])
+
+  /// Traverse over a list running a given mapping function over the elements, 
+  /// collecting the outcomes into a result.
+  let traverse f xs =
+    traverseWith List.append f xs
 
   /// Transforms a list of results into a result of a list.
   let sequence xs = traverse id xs
