@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace FPrimitive.CSharp.Tests
+namespace System
 {
     /// <summary>
     /// Represents an abstracted result that can either represent a successful or failure outcome.
