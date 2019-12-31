@@ -9,7 +9,7 @@ exception NotSuccessfulException of string
 /// Exception thrown when the failure value of a result instance is called while the instance represents a successful outcome.
 exception NotFailureException of string
 
-/// Represents a obstracted result model that can either present a successful or failure outcome.
+/// Represents an abstracted result model that can either represent a successful or failure outcome.
 [<Struct; DebuggerDisplay("{IsSuccess ? \"Success: \" + Value : \"Failure: \" + Error}")>]
 type Outcome<'T, 'TError> private (value : 'T option, error : 'TError option) =
   /// Creates a successful result instance.
@@ -32,11 +32,11 @@ type Outcome<'T, 'TError> private (value : 'T option, error : 'TError option) =
   member __.IsFailure = Option.isSome error
   /// Gets the success value when this instance represents a successful outcome; throw `NotSuccessfulException` otherwise.
   member __.Value = 
-    let msg = sprintf "Cannot get successful value of Result<%s, %s> because it represents a failure outcome" typeof<'T>.Name typeof<'TError>.Name
+    let msg = sprintf "Cannot get successful value of Outcome<%s, %s> because it represents a failure outcome" typeof<'T>.Name typeof<'TError>.Name
     match value with Some x -> x | None -> raise (NotSuccessfulException msg)
   /// Gets the failure value when this instance represents a failure outcome; throw `NotFailureException` otherwise.
   member __.Error =
-    let msg = sprintf "Cannot get failure value of Result<%s, %s> because it represents a successful outcome" typeof<'T>.Name typeof<'TError>.Name
+    let msg = sprintf "Cannot get failure value of Outcome<%s, %s> because it represents a successful outcome" typeof<'T>.Name typeof<'TError>.Name
     match error with Some x -> x | None -> raise (NotFailureException msg)
   /// Creates a successful result instance.
   static member Success (value) = Outcome<'T, 'TError> (Some value, None)
@@ -203,42 +203,64 @@ type OutcomeExtensions private () =
   /// Combine two result instances with a set of given zipper functions.
   [<Extension>]
   static member Zip 
-    ( result1 : Outcome<'T1, 'TError1>, 
-      result2 : Outcome<'T2, 'TError2>,
+    ( result1 : Outcome<'T1, 'TError>, 
+      result2 : Outcome<'T2, 'TError>,
       zipper : Func<'T1, 'T2, 'TResult>, 
-      zipperError : Func<'TError1, 'TError2, 'TErrorResult>) =
+      zipperError : Func<'TError, 'TError, 'TError>) =
     if isNull zipper then nullArg "zipper"
     if isNull zipperError then nullArg "zipperError"
-    if result1.IsSuccess && result2.IsSuccess
-    then Outcome<'TResult, 'TErrorResult>.Success (zipper.Invoke (result1.Value, result2.Value))
-    else Outcome<'TResult, 'TErrorResult>.Failure (zipperError.Invoke (result1.Error, result2.Error))
+    match result1.IsSuccess, result2.IsSuccess with
+    | true, true -> Outcome.Success (zipper.Invoke (result1.Value, result2.Value))
+    | false, false -> Outcome.Failure (zipperError.Invoke (result1.Error, result2.Error))
+    | false, true -> Outcome.Failure (result1.Error)
+    | true, false -> Outcome.Failure (result2.Error)
   /// Combine three result instances with a set of given zipper functions.
   [<Extension>]
   static member Zip 
-    ( result1 : Outcome<'T1, 'TError1>, 
-      result2 : Outcome<'T2, 'TError2>,
-      result3 : Outcome<'T3, 'TError3>,
+    ( result1 : Outcome<'T1, 'TError>, 
+      result2 : Outcome<'T2, 'TError>,
+      result3 : Outcome<'T3, 'TError>,
       zipper : Func<'T1, 'T2, 'T3, 'TResult>, 
-      zipperError : Func<'TError1, 'TError2, 'TError3, 'TErrorResult>) =
+      zipperError : Func<'TError, 'TError, 'TError>) =
     if isNull zipper then nullArg "zipper"
     if isNull zipperError then nullArg "zipperError"
-    if result1.IsSuccess && result2.IsSuccess && result3.IsSuccess
-    then Outcome<'TResult, 'TErrorResult>.Success (zipper.Invoke (result1.Value, result2.Value, result3.Value))
-    else Outcome<'TResult, 'TErrorResult>.Failure (zipperError.Invoke (result1.Error, result2.Error, result3.Error))
+    match result1.IsSuccess, result2.IsSuccess, result3.IsSuccess with
+    | true, true, true -> Outcome.Success (zipper.Invoke (result1.Value, result2.Value, result3.Value))
+    | false, false, false -> Outcome.Failure (zipperError.Invoke (zipperError.Invoke (result1.Error, result2.Error), result3.Error))
+    | false, true, true -> Outcome.Failure result1.Error
+    | true, false, true -> Outcome.Failure result2.Error
+    | true, true, false -> Outcome.Failure result3.Error
+    | false, false, true -> Outcome.Failure (zipperError.Invoke (result1.Error, result2.Error))
+    | true, false, false -> Outcome.Failure (zipperError.Invoke (result2.Error, result3.Error))
+    | false, true, false -> Outcome.Failure (zipperError.Invoke (result1.Error, result3.Error))
   /// Combine four result instances with a set of given zipper functions.
   [<Extension>]
   static member Zip 
-    ( result1 : Outcome<'T1, 'TError1>, 
-      result2 : Outcome<'T2, 'TError2>,
-      result3 : Outcome<'T3, 'TError3>,
-      result4 : Outcome<'T4, 'TError4>,
+    ( result1 : Outcome<'T1, 'TError>, 
+      result2 : Outcome<'T2, 'TError>,
+      result3 : Outcome<'T3, 'TError>,
+      result4 : Outcome<'T4, 'TError>,
       zipper : Func<'T1, 'T2, 'T3, 'T4, 'TResult>, 
-      zipperError : Func<'TError1, 'TError2, 'TError3, 'TError4, 'TErrorResult>) =
+      zipperError : Func<'TError, 'TError, 'TError>) =
     if isNull zipper then nullArg "zipper"
     if isNull zipperError then nullArg "zipperError"
-    if result1.IsSuccess && result2.IsSuccess && result3.IsSuccess
-    then Outcome<'TResult, 'TErrorResult>.Success (zipper.Invoke (result1.Value, result2.Value, result3.Value, result4.Value))
-    else Outcome<'TResult, 'TErrorResult>.Failure (zipperError.Invoke (result1.Error, result2.Error, result3.Error, result4.Error))
+    match result1.IsSuccess, result2.IsSuccess, result3.IsSuccess, result4.IsSuccess with
+    | true, true, true, true -> Outcome.Success (zipper.Invoke (result1.Value, result2.Value, result3.Value, result4.Value))
+    | false, false, false, false -> Outcome.Failure (zipperError.Invoke (zipperError.Invoke (zipperError.Invoke (result1.Error, result2.Error), result3.Error), result4.Error))
+    | false, true, true, true -> Outcome.Failure result1.Error
+    | true, false, true, true -> Outcome.Failure result2.Error
+    | true, true, false, true -> Outcome.Failure result3.Error
+    | true, true, true, false -> Outcome.Failure result4.Error
+    | false, false, true, true -> Outcome.Failure (zipperError.Invoke (result1.Error, result2.Error))
+    | true, false, false, true -> Outcome.Failure (zipperError.Invoke (result2.Error, result2.Error))
+    | true, true, false, false -> Outcome.Failure (zipperError.Invoke (result3.Error, result4.Error))
+    | false, true, false, true -> Outcome.Failure (zipperError.Invoke (result1.Error, result3.Error))
+    | true, false, true, false -> Outcome.Failure (zipperError.Invoke (result2.Error, result4.Error))
+    | false, false, false, true -> Outcome.Failure (zipperError.Invoke (zipperError.Invoke (result1.Error, result2.Error), result3.Error))
+    | true, false, false, false -> Outcome.Failure (zipperError.Invoke (zipperError.Invoke (result2.Error, result3.Error), result4.Error))
+    | false, true, false, false -> Outcome.Failure (zipperError.Invoke (zipperError.Invoke (result1.Error, result3.Error), result4.Error))
+    | false, false, true, false -> Outcome.Failure (zipperError.Invoke (zipperError.Invoke (result1.Error, result2.Error), result4.Error))
+    | false, true, true, false -> Outcome.Failure (zipperError.Invoke (result1.Error, result4.Error))
   /// Transforms two results together, the abstracted 'plus' (+) operator.
   [<Extension>]
   static member Plus 
@@ -256,11 +278,11 @@ type OutcomeExtensions private () =
 
   /// Switch to another result if the current result represents a failure.
   [<Extension>]
-  static member OrElse (result : Outcome<'T, 'TError>, otherwise : Func<'TError, Outcome<'T, 'TErrorResult>>) =
+  static member OrElse (result : Outcome<'T, 'TError>, otherwise : Func<'TError, Outcome<'T, 'TError>>) =
     if isNull otherwise then nullArg "otherwise"
     if result.IsFailure
     then otherwise.Invoke result.Error
-    else Outcome<'T, 'TErrorResult>.Success result.Value
+    else Outcome<'T, 'TError>.Success result.Value
   /// Gets the successful value of the outcome instance, or an evaluated default value.
   [<Extension>]
   static member GetOrElse (result : Outcome<'T, 'TError>, otherwise : Func<'T>) =
