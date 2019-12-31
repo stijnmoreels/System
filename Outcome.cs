@@ -1298,6 +1298,11 @@ namespace FPrimitive.CSharp.Tests
             this Outcome<T, IEnumerable<TError>> outcome,
             IEnumerable<TError> errors)
         {
+            if (errors is null)
+            {
+                throw new ArgumentNullException(nameof(errors));
+            }
+            
             return outcome.Select(err => err.Concat(errors));
         }
 
@@ -1310,6 +1315,11 @@ namespace FPrimitive.CSharp.Tests
             this Outcome<T, IEnumerable<TError>> outcome,
             string separator)
         {
+            if (separator is null)
+            {
+                throw new ArgumentNullException(nameof(separator));
+            }
+            
             return outcome.Select((IEnumerable<TError> errors) => String.Join(separator, errors))
                           .GetOrElse(String.Empty);
         }
