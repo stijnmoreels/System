@@ -69,7 +69,7 @@ type Outcome private () =
   /// Creates a result instance representing a value when the given predicate holds.
   static member Create<'T, 'TError> (value, predicate : Func<'T, ValueTuple<bool, 'TError>>) =
     if isNull predicate then nullArg "predicate"
-    match predicate.Invoke value with
+    match (predicate.Invoke value).ToTuple() with
     | true, _ -> Outcome<'T, 'TError>.Success value
     | false, error -> Outcome<'T, 'TError>.Failure error
   /// Transforms a F# result to a C# result instance.
