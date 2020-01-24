@@ -55,10 +55,10 @@ module Map =
         (fun x -> [| x |]) k xs m) xs Map.empty
 
   /// Gets the keys of the map.
-  let keys m = Map.toSeq m |> Seq.map fst
+  let keys (m : Map<_, _>) = seq { for x in m do yield x.Key }
 
   /// Gets the values of the map.
-  let values m = Map.toSeq m |> Seq.map snd
+  let values (m : Map<_, _>) = seq { for x in m do yield x.Value }
 
   /// Creates a new map with a key and value.
   let create key xs = Map.empty |> Map.add key xs
@@ -71,6 +71,9 @@ module Map =
 
   /// Combines two maps into a new map, updating the values of duplicate entries. 
   let appendu m1 m2 = Seq.append (Map.toSeq m1) (Map.toSeq m2) |> ofSequ
+
+  /// Combines two maps with already grouped entries into a new map, updating the values of duplicate entries.
+  let appendg m1 m2 = Seq.append (Map.toSeq m1) (Map.toSeq m2) |> ofSeqg
 
 /// Builder type for computation expressions for the `Map<_, _>` type.
 type MapBuilder<'TKey, 'TValue when 'TKey : comparison> (ofSeq : (seq<'TKey * 'TValue> -> Map<'TKey, 'TValue>)) =
