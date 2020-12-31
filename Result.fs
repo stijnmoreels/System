@@ -19,7 +19,7 @@ module Result =
   let isOk = function Ok _ -> true | _ -> false
   
   /// Determines whether the result is faulted.
-  let isError = function Error _ -> false | _ -> true
+  let isError = function Error _ -> true | _ -> false
 
   /// Maps to a fixed `Ok` value `x` when the result is `Ok x`.
   let mapTo value = function
