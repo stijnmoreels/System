@@ -13,10 +13,10 @@ module Map =
   let ofDict (d : #IDictionary<_, _>) = Seq.map (|KeyValue|) d |> Map.ofSeq
   
   /// Converts a `IReadOnlyDictionary<_, _>` instance to a `Map<_, _>` value.
-  let toReadonlyDict m = (Map.toSeq m) |> readOnlyDict
+  let toReadOnlyDict m = (Map.toSeq m) |> readOnlyDict
 
   /// Converts a `Map<_, _>` value to a `IDictionary<_, _>` instance.
-  let ofReadonlyDict (d : #IReadOnlyDictionary<_, _>) = Seq.map (|KeyValue|) d |> Map.ofSeq
+  let ofReadOnlyDict (d : #IReadOnlyDictionary<_, _>) = Seq.map (|KeyValue|) d |> Map.ofSeq
  
   /// Adds a value to the map but handles dupplicate values with it.
   let addWith updateValue createValue key value m =
