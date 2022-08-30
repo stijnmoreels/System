@@ -193,7 +193,7 @@ type MaybeExtensions private () =
   static member LastOrNothing (sequence : IEnumerable<'T>) = Enumerable.LastOrDefault sequence |> Maybe.JustOrNothing
   /// Gets the element at the specified index in the sequence or an optional value representing the absance of a value.
   [<Extension>]
-  static member ElementAtOrNothing (sequence : IEnumerable<'T>, index) = Enumerable.ElementAtOrDefault (sequence, index) |> Maybe.JustOrNothing
+  static member ElementAtOrNothing (sequence : IEnumerable<'T>, index : int) = Enumerable.ElementAtOrDefault (sequence, index) |> Maybe.JustOrNothing
   /// Transforms a optional `Maybe<>` instance to a F# option.
   [<Extension>]
   static member ToOption (maybe : Maybe<'T>) = Maybe<'T>.op_Implicit maybe
