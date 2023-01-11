@@ -57,18 +57,18 @@ module Date =
   let next x measure date = add x measure date
   /// Add 1 date measure to a given date.
   let next1 measure date = add1 measure date
-  /// Substracts an unit of a date measure to a given date.
-  let substract x measure date = add -x measure date
-  /// Substracts 1 date measure to a given date.
-  let substract1 measure date = substract 1 measure date
-  /// Substracts an unit of a date measure to a given date.
-  let prev x measure date = substract x measure date
-  /// Substracts 1 date measure to a given date.
-  let prev1 measure date = substract1 measure date
+  /// Subtracts an unit of a date measure to a given date.
+  let subtract x measure date = add -x measure date
+  /// Subtracts 1 date measure to a given date.
+  let subtract1 measure date = subtract 1 measure date
+  /// Subtracts an unit of a date measure to a given date.
+  let prev x measure date = subtract x measure date
+  /// Subtracts 1 date measure to a given date.
+  let prev1 measure date = subtract1 measure date
   /// Adds an amount of weeks to a given date.
   let addWeeks x date = add (7 * x) Day date
-  /// Substracts an amount of weeks to a given date.
-  let substractWeeks x date = substract (7 * x) Day date
+  /// Subtracts an amount of weeks to a given date.
+  let subtractWeeks x date = subtract (7 * x) Day date
   /// Gets all the hours in a day.
   [<CompiledName("HoursInDay")>]
   let hoursInDay = [1..23]
@@ -317,6 +317,6 @@ type DateExtensions () =
   /// Adds an amount of weeks to a given date.
   [<Extension>]
   static member AddWeeks (date, amount) = Date.addWeeks amount date
-  /// Substracts an amount of weeks to a given date.
+  /// Subtracts an amount of weeks to a given date.
   [<Extension>]
-  static member SubstractWeeks (date, amount) = Date.substractWeeks amount date
+  static member SubtractWeeks (date, amount) = Date.subtractWeeks amount date
