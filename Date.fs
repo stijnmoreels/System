@@ -24,7 +24,7 @@ module Date =
   let utc = DateTimeOffset.UtcNow
   /// Gets all the measures (Year -> Millisecond) used as unit of measure during the date operations.
   [<CompiledName("Measurements")>]
-  let measures = [ Year; Month; Day; Hour; Minute; Second; Millisecond ]
+  let measures = seq { Year; Month; Day; Hour; Minute; Second; Millisecond }
   /// Matches user functions to date measures.
   let matches fyear fmonth fday fhour fminute fsecond fmillisecond m x =
     match m with
@@ -37,10 +37,10 @@ module Date =
     | Millisecond -> fmillisecond x
   /// Gets all date measures above a given date measure (ex. measures below Day are Hour, Minute, Second & MilliSecond).
   [<CompiledName("MeasurementsBelow")>]
-  let measuresBelow m = measures |> List.rev |> List.takeWhile ((<>) m) |> List.rev
+  let measuresBelow m = measures |> Seq.rev |> Seq.takeWhile ((<>) m) |> Seq.rev
   /// Gets all date measures below a given date measure (ex. measures above Day are Year & Month). 
   [<CompiledName("MeasurementsAbove")>]
-  let measuresAbove m = List.except (measuresBelow m) measures
+  let measuresAbove m = Seq.except (measuresBelow m) measures
   /// Add an unit of a date measure to a given date.
   let add x measure (date : DateTimeOffset) =
     match measure with
@@ -171,7 +171,6 @@ module Date =
   let diff min max =
     let min, max = ensure min max
     let result = { Years = 0; Months = 0; Days = 0; Hours = 0; Minutes = 0; Seconds = 0; Milliseconds = 0 }
-
     let rec addTill m r =
       if Diff.addTo min r |> add 1 m > max then r
       else addTill m (Diff.add 1 m r)
