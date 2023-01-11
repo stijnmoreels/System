@@ -170,13 +170,12 @@ module Date =
   [<CompiledName("Difference")>]
   let diff min max =
     let min, max = ensure min max
-    let result = { Years = 0; Months = 0; Days = 0; Hours = 0; Minutes = 0; Seconds = 0; Milliseconds = 0 }
     let rec addTill m r =
       if Diff.addTo min r |> add 1 m > max then r
       else addTill m (Diff.add 1 m r)
 
-    if min = max then result 
-    else Seq.fold (fun r m -> addTill m r) result measures
+    if min = max then Diff.none 
+    else Seq.fold (fun r m -> addTill m r) Diff.none measures
   /// Gets all the available dates between two dates in a given measurement.
   [<CompiledName("Range")>]
   let range measure (start : DateTimeOffset) (finish : DateTimeOffset) =
